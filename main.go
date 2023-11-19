@@ -1,6 +1,12 @@
 package main
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+)
 
 type RSS struct {
 	XMLName xml.Name `xml:"rss"`
@@ -25,11 +31,47 @@ type News struct {
 }
 
 func main() {
-	readGoogleTrends()
+	var r RSS
+
+	data := readGoogleTrends()
+
+	err := xml.Unmarshal(data, &r)
+	if err != nil {
+		fmt.Println("Error during Unmarshaling: ", err)
+	}
+
+	fmt.Println("\n Below are all the Google Search Trends for today:")
+	fmt.Println("-----------------------------------------------")
+
+	for i := range r.Channel.ItemList {
+		rank := i + 1
+		fmt.Println("#", rank)
+		fmt.Println("Search Term: ", r.Channel.ItemList[i].Title)
+		fmt.Println("Search Link: ", r.Channel.ItemList[i].Link)
+		fmt.Println("Headline: ", r.Channel.ItemList[i].NewsItems[0].Headline)
+		fmt.Println("Headline Link to article: ", r.Channel.ItemList[i].NewsItems[0].HeadlineLink)
+		fmt.Println("-----------------------------------------------")
+	}
 }
 
-func readGoogleTrends() {
-	getGoogleTrends()
+func getGoogleTrends() *http.Response {
+	resp, err := http.Get("https://trends.google.com/trends/trendingsearches/daily/rss?geo=US")
+	if err != nil {
+		fmt.Println("Error: ", err)
+		os.Exit(1)
+	}
+
+	return resp
 }
 
-func getGoogleTrends() {}
+func readGoogleTrends() []byte {
+	resp := getGoogleTrends()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		os.Exit(1)
+	}
+
+	return data
+}
